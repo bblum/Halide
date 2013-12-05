@@ -737,6 +737,28 @@ struct For : public StmtNode<For> {
     }
 };
 
+/* A dynamically-scheduled statement. 'name' is the name of the function
+ * being computed dynamically, and is used to determine the associated
+ * bitmask which tracks whether or not this statement has already been
+ * computed. 'bitmask_index' is an index into that for this statement.
+ * Generated in Lower and converted into if/thens in StorageFlattening. */
+struct DynamicStmt : public StmtNode<DynamicStmt > {
+    std::string name;
+    Expr bitmask_index;
+    Stmt body;
+
+    static Stmt make(std::string name, Expr bitmask_index, Stmt body) {
+        assert(bitmask_index.defined() && "DynamicStmt of undefined");
+        assert(body.defined() && "DynamicStmt of undefined body");
+
+        DynamicStmt *node = new DynamicStmt;
+        node->name = name;
+        node->bitmask_index = bitmask_index;
+        node->body = body;
+        return node;
+    }
+};
+
 /** Store a 'value' to the buffer called 'name' at a given
  * 'index'. The buffer is interpreted as an array of the same type as
  * 'value'. */

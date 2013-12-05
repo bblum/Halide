@@ -192,6 +192,16 @@ void IRMutator::visit(const For *op) {
     }
 }
 
+void IRMutator::visit(const DynamicStmt *op) {
+    Expr bitmask_index = mutate(op->bitmask_index);
+    Stmt body = mutate(op->body);
+    if (bitmask_index.same_as(op->bitmask_index) && body.same_as(op->body)) {
+        stmt = op;
+    } else {
+        stmt = DynamicStmt::make(op->name, bitmask_index, body);
+    }
+}
+
 void IRMutator::visit(const Store *op) {
     Expr value = mutate(op->value);
     Expr index = mutate(op->index);

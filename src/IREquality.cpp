@@ -312,6 +312,20 @@ public:
         }
     }
 
+    void visit(const DynamicStmt *op) {
+        if (result || stmt.same_as(op) || compare_node_types(stmt, op)) return;
+
+        const DynamicStmt *s = stmt.as<DynamicStmt>();
+
+        if (compare_names(s->name, op->name)) return;
+
+        expr = s->bitmask_index;
+        op->bitmask_index.accept(this);
+
+        stmt = s->body;
+        op->body.accept(this);
+    }
+
     void visit(const Store *op) {
         if (result || stmt.same_as(op) || compare_node_types(stmt, op)) return;
 

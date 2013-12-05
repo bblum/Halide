@@ -153,6 +153,11 @@ void IRVisitor::visit(const For *op) {
     op->body.accept(this);
 }
 
+void IRVisitor::visit(const DynamicStmt *op) {
+    op->bitmask_index.accept(this);
+    op->body.accept(this);
+}
+
 void IRVisitor::visit(const Store *op) {
     op->value.accept(this);
     op->index.accept(this);
@@ -365,6 +370,11 @@ void IRGraphVisitor::visit(const Pipeline *op) {
 void IRGraphVisitor::visit(const For *op) {
     include(op->min);
     include(op->extent);
+    include(op->body);
+}
+
+void IRGraphVisitor::visit(const DynamicStmt *op) {
+    include(op->bitmask_index);
     include(op->body);
 }
 
