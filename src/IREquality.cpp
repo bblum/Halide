@@ -376,6 +376,9 @@ public:
 
         expr = s->size;
         op->size.accept(this);
+
+        stmt = s->body;
+        op->body.accept(this);
     }
 
     void visit(const Realize *op) {
@@ -404,6 +407,9 @@ public:
                 expr = s->bounds[i].extent;
                 op->bounds[i].extent.accept(this);
             }
+
+            stmt = s->body;
+            op->body.accept(this);
         }
     }
 
