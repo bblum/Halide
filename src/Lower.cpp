@@ -91,6 +91,48 @@ Expr qualify_expr(const string &prefix, Expr value) {
     return q.mutate(value);
 }
 
+// This generates an expression that represents the size needed when allocating
+// the lazy-scheduling bitmask, and also checks legality along the way.
+Expr compute_lazy_bitmask_size(Function f) {
+    const Schedule &s = f.schedule();
+
+    Expr bitmask_size;
+    string prefix = f.name() + ".";
+
+    // Accumulate an expression structured like "(amax-amin)*(bmax-bmin)*...".
+    for (size_t i = 0; i < s.dims.size(); i++) {
+        const Schedule::Dim &dim = s.dims[i];
+
+        Expr min = Variable::make(Int(32), prefix + dim.var + ".min_produced");
+        Expr extent = Variable::make(Int(32), prefix + dim.var + ".extent_produced");
+        Expr dimension = Sub::make(extent, min);
+
+        if (bitmask_size.defined()) {
+            bitmask_size = Mul::make(bitmask_size, dimension);
+        } else {
+            bitmask_size = dimension;
+        }
+
+        if (s.lazy_level.match(prefix + dim.var)) {
+            // TODO(bblum): Do we need to check for enclosing dimensions also
+            // being vectorized?
+            if (dim.for_type == For::Vectorized) {
+                std::cerr << "Error: Cannot dynamically schedule `" << f.name()
+                          << "' in `" << dim.var
+                          << "' because that dimension is vectorized.\n";
+                assert(false);
+            }
+
+            return bitmask_size;
+        }
+    }
+
+    // Got here? Then none of the dimensions matched the variable given to lazify at.
+    std::cerr << "Error: Cannot dynamically schedule `" << f.name() << "' in `"
+              << s.lazy_level.var << "', which is not one of its dimensions.\n";
+    assert(false);
+}
+
 // Build a loop nest about a provide node using a schedule
 Stmt build_provide_loop_nest(Function f,
                              string prefix,
@@ -105,7 +147,7 @@ Stmt build_provide_loop_nest(Function f,
 
     // Make the (multi-dimensional multi-valued) store node.
     assert(!values.empty());
-    Stmt stmt = Provide::make(buffer, values, site, !s.lazy_level.is_inline());
+    Stmt stmt = Provide::make(buffer, values, site);
 
     // The dimensions for which we have a known static size.
     map<string, Expr> known_size_dims;
@@ -214,26 +256,34 @@ Stmt build_provide_loop_nest(Function f,
         }
     }
 
+    // Accumulates an expression representing an index into the dynamic scheduling
+    // bitmask for a specified loop level. Similar to compute_lazy_bitmask_size above,
+    // except uses the loops' index variables instead of the dimensions' extents.
+    Expr bitmask_index;
     bool found_lazy_level = false;
 
     // Build the loop nest
     for (size_t i = 0; i < s.dims.size(); i++) {
         const Schedule::Dim &dim = s.dims[i];
-
-        if (s.lazy_level.match(prefix + dim.var)) {
-            // TODO(bblum): Here insert a lazified ast node.
-            found_lazy_level = true;
-        }
-
         Expr min = Variable::make(Int(32), prefix + dim.var + ".min_produced");
         Expr extent = Variable::make(Int(32), prefix + dim.var + ".extent_produced");
-        stmt = For::make(prefix + dim.var, min, extent, dim.for_type, stmt);
-    }
 
-    if (!s.lazy_level.is_inline() && !found_lazy_level) {
-        std::cerr << "Error: Cannot dynamically schedule `" << f.name() << "' in `"
-                  << s.lazy_level.var << "', which is not one of its dimensions.\n";
-        assert(false);
+        if (!s.lazy_level.is_inline() && !found_lazy_level) {
+            // (a-amin)*(b-bmin)*...
+            Expr i = Sub::make(Variable::make(Int(32), prefix + dim.var), min);
+            if (bitmask_index.defined()) {
+                bitmask_index = Mul::make(bitmask_index, i);
+            } else {
+                bitmask_index = i;
+            }
+
+            if (s.lazy_level.match(prefix + dim.var)) {
+                stmt = DynamicStmt::make(f.name(), bitmask_index, stmt);
+                found_lazy_level = true;
+            }
+        }
+
+        stmt = For::make(prefix + dim.var, min, extent, dim.for_type, stmt);
     }
 
     // Define the bounds on the split dimensions using the bounds
@@ -585,10 +635,11 @@ private:
             bounds.push_back(Range(min, extent));
         }
 
-        // TODO(bblum): Send the whole lazy-level through, or some notion of dimension.
-
-        s = Realize::make(func.name(), func.output_types(), bounds,
-                          !func.schedule().lazy_level.is_inline(), s);
+        Expr bitmask_size;
+        if (!func.schedule().lazy_level.is_inline()) {
+            bitmask_size = compute_lazy_bitmask_size(func);
+        }
+        s = Realize::make(func.name(), func.output_types(), bounds, bitmask_size, s);
 
         // The allocated bounds are the bounds produced at this loop
         // level. If it's a reduction, we may need to increase it to

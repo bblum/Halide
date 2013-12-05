@@ -233,7 +233,7 @@ void IRMutator::visit(const Provide *op) {
     if (!changed) {
         stmt = op;
     } else {
-        stmt = Provide::make(op->name, new_values, new_args, op->lazy);
+        stmt = Provide::make(op->name, new_values, new_args);
     }
 }
 
@@ -267,7 +267,7 @@ void IRMutator::visit(const Realize *op) {
     if (!bounds_changed && body.same_as(op->body)) {
         stmt = op;
     } else {
-        stmt = Realize::make(op->name, op->types, new_bounds, op->lazy, body);
+        stmt = Realize::make(op->name, op->types, new_bounds, op->bitmask_size, body);
     }
 }
 

@@ -82,7 +82,7 @@ private:
                 new_values[i] = Call::make(old.type(), Call::trace, args, Call::Intrinsic);
             }
 
-            stmt = Provide::make(op->name, new_values, op->args, op->lazy);
+            stmt = Provide::make(op->name, new_values, op->args);
         }
     }
 
@@ -115,7 +115,7 @@ private:
             Stmt new_body = op->body;
             new_body = Block::make(Evaluate::make(call_before), new_body);
             new_body = Block::make(new_body, Evaluate::make(call_after));
-            stmt = Realize::make(op->name, op->types, op->bounds, op->lazy, new_body);
+            stmt = Realize::make(op->name, op->types, op->bounds, op->bitmask_size, new_body);
         }
     }
 

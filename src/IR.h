@@ -786,11 +786,8 @@ struct Provide : public StmtNode<Provide> {
     std::string name;
     std::vector<Expr> values;
     std::vector<Expr> args;
-    // TODO(bblum): turn this into a LoopLevel;
-    // or otherwise some instructions on how to index into it
-    bool lazy;
 
-    static Stmt make(std::string name, const std::vector<Expr> &values, const std::vector<Expr> &args, bool lazy) {
+    static Stmt make(std::string name, const std::vector<Expr> &values, const std::vector<Expr> &args) {
         assert(!values.empty() && "Provide of no values");
         for (size_t i = 0; i < values.size(); i++) {
             assert(values[i].defined() && "Provide of undefined value");
@@ -803,7 +800,6 @@ struct Provide : public StmtNode<Provide> {
         node->name = name;
         node->values = values;
         node->args = args;
-        node->lazy = lazy;
         return node;
     }
 };
@@ -859,15 +855,16 @@ typedef std::vector<Range> Region;
 /** Allocate a multi-dimensional buffer of the given type and
  * size. Create some scratch memory that will back the function 'name'
  * over the range specified in 'bounds'. The bounds are a vector of
- * (min, extent) pairs for each dimension. */
+ * (min, extent) pairs for each dimension. If 'bitmask_size' is defined,
+ * will also allocate a bitmask to memoize the function's results. */
 struct Realize : public StmtNode<Realize> {
     std::string name;
     std::vector<Type> types;
     Region bounds;
+    Expr bitmask_size;
     Stmt body;
-    bool lazy; // TODO(bblum): turn this into a LoopLevel
 
-    static Stmt make(const std::string &name, const std::vector<Type> &types, const Region &bounds, bool lazy, Stmt body) {
+    static Stmt make(const std::string &name, const std::vector<Type> &types, const Region &bounds, Expr bitmask_size, Stmt body) {
         for (size_t i = 0; i < bounds.size(); i++) {
             assert(bounds[i].min.defined() && "Realize of undefined");
             assert(bounds[i].extent.defined() && "Realize of undefined");
@@ -882,7 +879,7 @@ struct Realize : public StmtNode<Realize> {
         node->types = types;
         node->bounds = bounds;
         node->body = body;
-        node->lazy = lazy;
+        node->bitmask_size = bitmask_size;
         return node;
     }
 };

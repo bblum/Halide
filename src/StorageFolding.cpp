@@ -45,7 +45,7 @@ class FoldStorageOfFunction : public IRMutator {
         if (op->name == func) {
             vector<Expr> args = op->args;
             args[dim] = args[dim] % factor;
-            stmt = Provide::make(op->name, op->values, args, op->lazy);
+            stmt = Provide::make(op->name, op->values, args);
         }
     }
 
@@ -178,7 +178,7 @@ class StorageFolding : public IRMutator {
             if (body.same_as(op->body)) {
                 stmt = op;
             } else {
-                stmt = Realize::make(op->name, op->types, op->bounds, op->lazy, body);
+                stmt = Realize::make(op->name, op->types, op->bounds, op->bitmask_size, body);
             }
         } else {
             debug(3) << "Attempting to fold " << op->name << "\n";
@@ -187,7 +187,7 @@ class StorageFolding : public IRMutator {
             if (new_body.same_as(op->body)) {
                 stmt = op;
             } else if (new_body.same_as(body)) {
-                stmt = Realize::make(op->name, op->types, op->bounds, op->lazy, body);
+                stmt = Realize::make(op->name, op->types, op->bounds, op->bitmask_size, body);
             } else {
                 Region bounds = op->bounds;
 
@@ -196,7 +196,7 @@ class StorageFolding : public IRMutator {
 
                 bounds[folder.dim_folded] = Range(0, folder.fold_factor);
 
-                stmt = Realize::make(op->name, op->types, bounds, op->lazy, new_body);
+                stmt = Realize::make(op->name, op->types, bounds, op->bitmask_size, new_body);
             }
         }
     }
