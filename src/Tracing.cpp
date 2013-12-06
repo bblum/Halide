@@ -82,7 +82,7 @@ private:
                 new_values[i] = Call::make(old.type(), Call::trace, args, Call::Intrinsic);
             }
 
-            stmt = Provide::make(op->name, new_values, op->args, op->lazy);
+            stmt = Provide::make(op->name, new_values, op->args);
         }
     }
 
