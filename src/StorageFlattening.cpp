@@ -185,18 +185,21 @@ private:
 
     void visit(const DynamicStmt *dynamic) {
         string bitmask_name = dynamic->name + ".result_computed";
+        string index_name = dynamic->name + ".result_computed_index";
 
         Stmt body = mutate(dynamic->body);
-        Expr idx = flatten_args(dynamic->name, dynamic->indices);
+        Expr index_val = flatten_args(dynamic->name, dynamic->indices);
+        Expr index_var = Variable::make(Int(32), index_name);
 
         // TODO(bblum): Emit a release barrier here (and below) in case there
         // is concurrency between the compute level and the store level
-        Stmt store = Store::make(bitmask_name, const_true(), idx);
+        Stmt store = Store::make(bitmask_name, const_true(), index_var);
 
         // Wrap it with an if that skips the computation if it was already done.
         // TODO(bblum): An acquire barrier will also need to go before stmt.
-        Expr load = Load::make(Bool(), bitmask_name, idx);
+        Expr load = Load::make(Bool(), bitmask_name, index_var);
         stmt = IfThenElse::make(Not::make(load), Block::make(body, store));
+        stmt = LetStmt::make(index_name, index_val, stmt);
     }
 
     void visit(const Provide *provide) {
