@@ -55,6 +55,7 @@ endif()
 set(RUNTIME_CPP
   android_io 
   cuda 
+  dynamic_scheduling
   fake_thread_pool 
   gcd_thread_pool 
   ios_io 

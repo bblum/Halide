@@ -47,7 +47,7 @@ extern int halide_printf(const char *, ...);
 extern void halide_error(const char *msg);
 
 /** A macro that calls halide_error if the supplied condition is false. */
-#define halide_assert(cond) if (!(cond)) halide_error( #cond );
+#define halide_assert(cond) do { if (!(cond)) halide_error( #cond ); } while (0)
 
 /** Define halide_do_par_for to replace the default thread pool
  * implementation. halide_shutdown_thread_pool can also be called to
