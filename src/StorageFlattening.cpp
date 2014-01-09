@@ -110,14 +110,15 @@ private:
         // If so, allocate a memoization bitmask.
         if (realize->lazy) {
             string bitmask_name = realize->name + ".result_computed";
-            string loop_var_name = realize->name + ".init_loop_var";
+			Expr bitmask_var = Variable::make(Handle(), bitmask_name);
 
-            // Allocate and initialize a bitmask to track what's been computed.
-            // TODO(bblum): Make the init loop more efficient?
-            Expr loop_var = Variable::make(Int(32), loop_var_name);
-            Stmt body = Store::make(bitmask_name, const_false(), loop_var);
-            Stmt loop = For::make(loop_var_name, Expr(0), size, For::Serial, body);
-            stmt = Allocate::make(bitmask_name, Bool(), size, Block::make(loop, stmt));
+            // Allocate a bitmask to track what's been computed.
+			Expr create = Call::make(Handle(), "create_dynamic_tracker",
+									 vector<Expr>(size), Internal::Call::Extern);
+			Expr destroy = Call::make(UInt(1), "destroy_dynamic_tracker",
+									  vector<Expr>(bitmask_var), Internal::Call::Extern);
+			stmt = LetStmt::make(bitmask_name, create,
+								 Block::make(stmt, Evaluate::make(destroy)));
         }
 
         for (size_t idx = 0; idx < realize->types.size(); idx++) {
